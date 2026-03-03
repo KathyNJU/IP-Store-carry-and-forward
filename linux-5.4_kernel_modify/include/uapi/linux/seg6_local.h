@@ -1,0 +1,111 @@
+/*
+ *  SR-IPv6 implementation
+ *
+ *  Author:
+ *  David Lebrun <david.lebrun@uclouvain.be>
+ *
+ *
+ *  This program is free software; you can redistribute it and/or
+ *      modify it under the terms of the GNU General Public License
+ *      as published by the Free Software Foundation; either version
+ *      2 of the License, or (at your option) any later version.
+ */
+
+#ifndef _UAPI_LINUX_SEG6_LOCAL_H
+#define _UAPI_LINUX_SEG6_LOCAL_H
+
+#include <linux/seg6.h>
+#include <linux/ipv6.h>
+#include <linux/types.h>
+#include <linux/in6.h>
+#include <linux/list.h>
+
+enum {
+	SEG6_LOCAL_UNSPEC,
+	SEG6_LOCAL_ACTION,
+	SEG6_LOCAL_SRH,
+	SEG6_LOCAL_TABLE,
+	SEG6_LOCAL_NH4,
+	SEG6_LOCAL_NH6,
+	SEG6_LOCAL_IIF,
+	SEG6_LOCAL_OIF,
+	SEG6_LOCAL_BPF,
+	__SEG6_LOCAL_MAX,
+};
+#define SEG6_LOCAL_MAX (__SEG6_LOCAL_MAX - 1)
+
+enum {
+	SEG6_LOCAL_ACTION_UNSPEC	= 0,
+	/* node segment */
+	SEG6_LOCAL_ACTION_END		= 1,
+	/* adjacency segment (IPv6 cross-connect) */
+	SEG6_LOCAL_ACTION_END_X		= 2,
+	/* lookup of next seg NH in table */
+	SEG6_LOCAL_ACTION_END_T		= 3,
+	/* decap and L2 cross-connect */
+	SEG6_LOCAL_ACTION_END_DX2	= 4,
+	/* decap and IPv6 cross-connect */
+	SEG6_LOCAL_ACTION_END_DX6	= 5,
+	/* decap and IPv4 cross-connect */
+	SEG6_LOCAL_ACTION_END_DX4	= 6,
+	/* decap and lookup of DA in v6 table */
+	SEG6_LOCAL_ACTION_END_DT6	= 7,
+	/* decap and lookup of DA in v4 table */
+	SEG6_LOCAL_ACTION_END_DT4	= 8,
+	/* binding segment with insertion */
+	SEG6_LOCAL_ACTION_END_B6	= 9,
+	/* binding segment with encapsulation */
+	SEG6_LOCAL_ACTION_END_B6_ENCAP	= 10,
+	/* binding segment with MPLS encap */
+	SEG6_LOCAL_ACTION_END_BM	= 11,
+	/* lookup last seg in table */
+	SEG6_LOCAL_ACTION_END_S		= 12,
+	/* forward to SR-unaware VNF with static proxy */
+	SEG6_LOCAL_ACTION_END_AS	= 13,
+	/* forward to SR-unaware VNF with masquerading */
+	SEG6_LOCAL_ACTION_END_AM	= 14,
+	/* custom BPF action */
+	SEG6_LOCAL_ACTION_END_BPF	= 15,
+	// store and forward function
+	SEG6_LOCAL_ACTION_END_XS	= 16,
+
+	__SEG6_LOCAL_ACTION_MAX,
+};
+
+#define SEG6_LOCAL_ACTION_MAX (__SEG6_LOCAL_ACTION_MAX - 1)
+
+enum {
+	SEG6_LOCAL_BPF_PROG_UNSPEC,
+	SEG6_LOCAL_BPF_PROG,
+	SEG6_LOCAL_BPF_PROG_NAME,
+	__SEG6_LOCAL_BPF_PROG_MAX,
+};
+
+#define SEG6_LOCAL_BPF_PROG_MAX (__SEG6_LOCAL_BPF_PROG_MAX - 1)
+
+// define packet
+struct packet_info{
+	uint32_t packet_length;
+	uint16_t packet_number;
+	struct sk_buff *buff_skb;
+	struct list_head list;				// List head for chaining packets
+};
+
+// define block
+struct block_info{
+	uint32_t packets_number;
+	uint16_t block_number;
+	struct in6_addr nhaddr;				// Store nhaddr for matching
+	struct list_head packets_list;		// Head of the list of packets
+	struct list_head list;				// List head for chaining blocks
+};
+
+extern struct list_head block_list;
+// extern spinlock_t block_list_lock;
+struct sk_buff * read_block(uint16_t block_number, uint16_t packet_number);
+
+int delete_packet(uint16_t recv_block_num, uint16_t recv_packet_num);
+
+int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr, u32 tbl_id);
+
+#endif
